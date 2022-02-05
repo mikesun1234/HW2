@@ -1,0 +1,272 @@
+---
+title: "HW2"
+author: "Mike Sun"
+date: "2/3/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+datind2009 <- read.csv("~/Desktop/Fourth_Semester/613/HW2/datind2009.csv")
+```
+
+```{r, include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+
+$$ Exercise 1 $$
+
+Calculate the correlation between Y and X:
+
+```{r}
+datind2009_wage_age <- na.omit(select(datind2009,wage,age))
+
+X = datind2009_wage_age$age
+Y = datind2009_wage_age$wage
+
+cor(X,Y)
+```
+
+Calculate the coefficients on this regression:
+
+```{r}
+beta = solve((t(X)%*%X))%*%t(X)%*%Y
+beta
+```
+
+Calculate the standard errors of beta:
+Using the standard formulas of the OLS:
+
+```{r}
+sigmasq = sum((Y-(datind2009_wage_age$age)%*%beta)^2)/(nrow(datind2009_wage_age) - 2)
+sebeta = sqrt(sigmasq%*%solve((t(X)%*%X)))
+sebeta
+```
+
+Using bootstrap with 49 and 499 replications respectively. Comment on the difference between the two strategies.
+
+```{r}
+set.seed(125)
+n<- nrow(datind2009_wage_age)
+beta_table_49 = c()
+
+for (i in 1:49){
+  sample<- datind2009_wage_age[sample(n, .5*n , replace = FALSE),]
+  beta_h <- solve(t(sample[,2])%*%sample[,2])%*%t(sample[,2])%*%sample[,1]
+  beta_table_49 = append(beta_table_49,beta_h)
+}
+
+beta_average_49 = mean(beta_table_49)
+beta_average_49
+
+```
+
+```{r}
+set.seed(500)
+
+beta_table_499 = c()
+
+for (i in 1:499){
+  sample<- datind2009_wage_age[sample(n, .5*n , replace = FALSE),]
+  beta_h <- solve(t(sample[,2])%*%sample[,2])%*%t(sample[,2])%*%sample[,1]
+  beta_table_499 = append(beta_table_499,beta_h)
+}
+
+beta_average_499 = mean(beta_table_499)
+beta_average_499
+```
+
+Personally, I have no preference. The first one is the solution for full data while bootstrap results are brute force results of different subsets. 
+
+$$ Exercise 2 $$
+
+```{r,include=FALSE}
+#individual
+datind2004 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2004.csv")
+datind2005 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2005.csv")
+datind2006 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2006.csv")
+datind2007 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2007.csv")
+datind2008 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2008.csv")
+datind2009 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2009.csv")
+datind2010 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2010.csv")
+datind2011 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2011.csv")
+datind2012 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2012.csv")
+datind2013 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2013.csv")
+datind2014 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2014.csv")
+datind2015 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2015.csv")
+datind2016 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2016.csv")
+datind2017 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2017.csv")
+datind2018 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2018.csv")
+datind2019 <- read.csv("~/Desktop/Fourth_Semester/613/HW1/Data/datind2019.csv")
+```
+
+```{r}
+datind_full = unique(rbind(datind2004,datind2005,datind2006,datind2007,datind2008,datind2009,
+                           datind2010,datind2011,datind2012,datind2013,datind2014,datind2015,
+                           datind2016,datind2017,datind2018,datind2019))
+```
+
+```{r}
+datind_full = datind_full %>% mutate(age_range = as.factor(
+  ifelse(18 <= age & age<= 25 , '18-25', 
+         ifelse(26 <= age & age<= 30, '26-30',
+                ifelse(31 <= age & age<= 35, '31-35',
+                       ifelse(36 <= age & age<= 40, '36-40',
+                              ifelse(41 <= age & age<= 45, "41-45",
+                                     ifelse(46 <= age & age<= 50, "46-50",
+                                            ifelse(51 <= age & age<= 55, "51-55",
+                                                   ifelse(56 <= age & age<= 60, "56-60", "60+"))))))))))
+```
+
+```{r}
+wage_group_plot = ggplot(data=datind_full, aes(y=wage,x=year,group=age_range,colour = age_range)) + 
+  geom_point() + 
+  ggtitle("Wage Year by Age Group") + xlab("Year") + ylab("Wage")
+```
+
+```{r}
+wage_group_plot
+```
+
+Based on the graph, middle age group has higher income in general, and people get higher income in as year passes.
+
+After including a time fixed effect, how do the estimated coefficients change?
+
+```{r}
+datind_full$year = as.factor(datind_full$year)
+summary(lm(wage ~ age + year,datind_full))
+```
+age now have negative effect on income across years, but years does have a positive effect on income. 
+
+$$ Exercise 3 $$
+
+Exclude all individuals who are inactive:
+
+```{r}
+datind2007_active = datind2007 %>% filter(empstat != 'Inactive')
+```
+
+Write a function that returns the likelihood of the probit of being employed.
+
+```{r}
+datind2007_active = datind2007_active %>% mutate(employed = ifelse(empstat =="Employed",1,0))
+datind2007_short = na.omit(datind2007_active %>% select(age,employed))
+
+probit.ll <- function(beta, x, y) {
+  x.matrix <- as.matrix(x)
+  x.beta <- x.matrix %*% beta
+  proby <- pnorm(x.beta)
+  proby[proby > 0.99999] = 0.99999
+  proby[proby < 0.00001] = 0.00001
+  ll <- sum((y*log(proby)) + (1-y)*log(1-proby),na.rm = TRUE)
+  return(ll) 
+}
+```
+
+
+Optimize the model and interpret the coefficients.
+
+```{r}
+list = seq(-1,1, by = 0.01)
+best_l = -1000000
+
+for(i in list){
+  l = probit.ll(i,datind2007_active$age,datind2007_active$employed)
+  if(l > best_l){
+    best_l = l
+    best_beta = i
+  }
+}
+best_l
+best_beta
+```
+
+Can you estimate the same model including wages as a determinant of labor market participation? Explain.
+
+Yes, since if you receive wages, you are employed.
+
+
+$$ Exercise 4 $$
+
+Exclude all individuals who are inactive.
+
+```{r}
+datind2005_2015 = unique(rbind(datind2005,datind2006,datind2007,datind2008,datind2009,
+                         datind2010,datind2011,datind2012,datind2013,datind2014,datind2015))
+
+datind2005_2015$year = as.factor(datind2005_2015$year)
+```
+
+```{r}
+datind2005_2015 = datind2005_2015 %>% filter(empstat != 'Inactive') %>% 
+  mutate(employed = ifelse(empstat =="Employed",1,0))
+```
+
+
+Write and optimize the probit, logit, and the linear probability models.
+
+```{r}
+logit <- glm(employed ~ age + year, family=binomial(link="logit"), data=datind2005_2015) 
+probit <- glm(employed ~ age + year, family = binomial(link = "probit"), data=datind2005_2015) 
+OLS <- lm(employed ~ age + year, data=datind2005_2015)
+```
+
+```{r}
+summary(logit)
+```
+```{r}
+summary(probit)
+```
+
+```{r}
+summary(OLS)
+```
+
+Interpret and compare the estimated coefficients. How significant are they?
+
+For and OLS we have: as age increase by 1, the probability of being employed goes down by 0.18%. However, for logit and probit, we can only say that, increasing in age leads to lower probability of employment. Results of three model are all significant. Probit and Logit results are the same, just different scaling.
+
+$$ Exercise 5 $$
+
+```{r, include=FALSE}
+library(margins)
+```
+
+logit:
+
+```{r}
+logit_m = summary(margins(logit))
+```
+
+```{r}
+logit_m$AME
+```
+
+
+probit:
+
+```{r}
+probit_m=summary(margins(probit))
+```
+
+```{r}
+probit_m$AME
+```
+
+
+Construct the standard errors of the marginal effects
+
+logit:
+```{r}
+logit_m$SE
+```
+
+probit:
+```{r}
+probit_m$SE
+```
